@@ -26,7 +26,7 @@ class Module
       when Hash
         arg.each do |method, ret_val|
           modewl.send :alias_method, "__#{method}_stubbed".to_sym, method
-          modewl.send(:define_method, method){ ret_val }
+          modewl.send(:define_method, method){ |*args| ret_val }
         end
       when Symbol
         modewl.send :alias_method, "__#{arg}_stubbed".to_sym, arg
