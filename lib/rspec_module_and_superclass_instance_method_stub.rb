@@ -19,6 +19,20 @@ class Module
   @@stubbed_modules = []
   
   def any_including_instance
+    stubbing_provider
+  end
+  
+  def self.clean_stubs
+    @@stubbed_modules.each do |stubbed_module|
+      stubbed_module.instance_methods.each do |instance_method|
+        restore_pristine(stubbed_module, instance_method) if instance_method.to_s =~ /^__.+_stubbed$/
+      end
+    end
+  end
+  
+  protected
+  
+  def stubbing_provider
     modewl = self
     (@@stubbed_modules << modewl).uniq!
     stub = lambda do |arg, &block|
@@ -49,20 +63,13 @@ class Module
           o
         end
       else
-        raise 'Call any_including_instance#stub with a Hash or a Symbol'
+        raise "Call #{@calling_type}.#{@calling_method}#stub with a Hash or a Symbol"
       end
     end
     (o = Object.new).define_singleton_method :stub, stub
+    o.instance_variable_set :@calling_method, caller.first.sub(/.*`(.+)'.*/, '\1')
+    o.instance_variable_set :@calling_type, self.class
     o
-  end
-  
-  
-  def self.clean_stubs
-    @@stubbed_modules.each do |stubbed_module|
-      stubbed_module.instance_methods.each do |instance_method|
-        restore_pristine(stubbed_module, instance_method) if instance_method.to_s =~ /^__.+_stubbed$/
-      end
-    end
   end
   
   class << self
@@ -85,6 +92,8 @@ end
 
 class Class
   
-  alias_method :any_non_overriding_instance, :any_including_instance
+  def any_non_overriding_instance
+    stubbing_provider
+  end
   
 end
