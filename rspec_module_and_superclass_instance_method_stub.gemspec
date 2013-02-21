@@ -3,7 +3,7 @@ $LOAD_PATH << lib_dir unless $LOAD_PATH.include?(lib_dir)
 
 Gem::Specification.new do |s|
   s.name = 'rspec-module-and-superclass-instance-method-stub'
-  s.version = '1.0.0'
+  s.version = '1.0.1'
   s.authors = ['Martin Eismann']
   s.email = ['martin.eismann@injixo.com']
   s.homepage = 'https://github.com/meismann/rspec-module-and-superclass-instance-method-stub'
