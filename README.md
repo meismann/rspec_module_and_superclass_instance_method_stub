@@ -9,6 +9,9 @@ Allows you to stub instance methods on already included modules (such as Rails' 
     # Gemfile, group :test
     gem 'rspec-module-and-superclass-instance-method-stub', git: 'https://github.com/meismann/rspec-module-and-superclass-instance-method-stub.git'
     
+    # spec_helper.rb
+    require 'rspec_module_and_superclass_instance_method_stub'
+    
 ## Usage
 
 ### Stubbing an instance method of a Module
