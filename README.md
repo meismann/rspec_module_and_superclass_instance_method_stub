@@ -41,3 +41,15 @@ This Gem supports several syntaxes known from RSpec to stub methods of classes. 
 ### Stubbing an instance of a class (overridably)
 
 The syntax here is the same as when »Stubbing an instance method of a Module«. Just use ```any_non_overriding_instance``` instead of ```any_including_instance```. These two methods are indeed even aliases. The differentiation is made only for the obvious reason of expressiveness.
+
+## Known Issues
+
+There was an issue discovered with private Module-methods: stubbing the method with 
+
+    <Module name>.any_including_instance.stub :<method name>
+    
+works, but the method does not get reset after the test. I may or may not fix this.
+
+Workaround: make the method public.
+
+
