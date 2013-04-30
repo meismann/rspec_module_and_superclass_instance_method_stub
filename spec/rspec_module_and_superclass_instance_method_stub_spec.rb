@@ -13,6 +13,17 @@ class ClassIncludingAModuleWithStubbedMethods
   include M
 end
 
+module MM
+  include M
+end
+
+class ClassIncludingAModuleWithNestedStubbedMethods
+  include MM
+end
+
+class IclM; include M; end
+class IclMM; include MM; end
+
 shared_context 'giving a shit about arity when calling' do |*methods|
   
   methods.each do |method|
@@ -23,6 +34,25 @@ shared_context 'giving a shit about arity when calling' do |*methods|
   
 end
 
+def check_pristine_state
+  [ClassIncludingAModuleWithStubbedMethods, ClassIncludingAModuleWithNestedStubbedMethods, M, MM].each do |m|
+    stubs = m.instance_methods.select{ |meth| meth.to_s =~ /^__.+_stubbed$/ }
+    raise "Module #{m} still has stubbed methods: #{stubs} in before-hook" if stubs.any?
+  end
+  [ClassIncludingAModuleWithNestedStubbedMethods,
+    ClassIncludingAModuleWithStubbedMethods, IclM, IclMM].each do |m|
+      m1 = m.new.m1
+      m2 = m.new.m2 nil
+      error_for(m, :m1, m1) unless m1 == 'm1 in M'
+      error_for(m, :m2, m2) unless m2 == 'm2 in M'
+  end
+end
+
+def error_for(mod, meth, res)
+  raise "#{mod}##{meth} still results in #{nice res}"
+end
+
+
 describe 'When stubbing the methods of a module' do
   context '--when #stub got called with' do
     [nil, 'a String', false, proc{}].each do |shit|
@@ -32,94 +62,108 @@ describe 'When stubbing the methods of a module' do
     end
   end
   context '--when other examples are run after the one calling #stub--' do
-    no_after_hook_run_yet = true
-    
-    before :all do
-      M.any_including_instance.stub m1: :check_unstub_in_after_hook
-    end
-    
-    subject { ClassIncludingAModuleWithStubbedMethods.new }
-    
-    it 'should have returned to its pristine state I (only passing with II having passed!)' do
-      if subject.m1 == :check_unstub_in_after_hook && no_after_hook_run_yet
-        no_after_hook_run_yet = false
-      else
-        no_after_hook_run_yet = false
-        subject.m1.should == 'm1 in M'
-        subject.should_not respond_to :__m1_stubbed
-      end
-    end
-    
-    it 'should have returned to its pristine state II (only passing with I having passed!)' do
-      if subject.m1 == :check_unstub_in_after_hook && no_after_hook_run_yet
-        no_after_hook_run_yet = false
-      else
-        no_after_hook_run_yet = false
-        subject.m1.should == 'm1 in M'
-        subject.should_not respond_to :__m1_stubbed
+    [[ClassIncludingAModuleWithStubbedMethods, M],
+      [ClassIncludingAModuleWithNestedStubbedMethods, M],
+      [ClassIncludingAModuleWithNestedStubbedMethods, MM]
+    ].each do |klass, modewl|
+      describe klass do
+        no_after_hook_run_yet = true
+
+        before :all do
+          modewl.any_including_instance.stub m1: :check_unstub_in_after_hook
+        end
+
+        it 'should have returned to its pristine state I (only passing with II having passed!)' do
+          if subject.m1 == :check_unstub_in_after_hook && no_after_hook_run_yet
+            no_after_hook_run_yet = false
+          else
+            no_after_hook_run_yet = false
+            subject.m1.should == 'm1 in M'
+            subject.should_not respond_to :__m1_stubbed
+          end
+        end
+
+        it 'should have returned to its pristine state II (only passing with I having passed!)' do
+          if subject.m1 == :check_unstub_in_after_hook && no_after_hook_run_yet
+            no_after_hook_run_yet = false
+          else
+            no_after_hook_run_yet = false
+            subject.m1.should == 'm1 in M'
+            subject.should_not respond_to :__m1_stubbed
+          end
+        end
       end
     end
   end
 end
 
-describe ClassIncludingAModuleWithStubbedMethods do
+[[ClassIncludingAModuleWithStubbedMethods, M],
+  [ClassIncludingAModuleWithNestedStubbedMethods, MM],
+  [ClassIncludingAModuleWithNestedStubbedMethods, M]
+].each do |klass, modewl|
+  describe klass do
 
-  describe 'borrowing a stubbed method from an included Module' do
-  
-    context '--when called with a Hash--' do
-      before do
-        M.any_including_instance.stub m1: 'stubbed m1'
-        M.any_including_instance.stub m2: 'stubbed m2'
-      end
-      
-      it_behaves_like 'giving a shit about arity when calling', :m1, :m2
-      
-      it 'should stub the methods given in the keys and make them return a default value as indicated in the corresponding Hash-value' do
-        subject.m1.should == 'stubbed m1'
-        subject.m2.should == 'stubbed m2'
-      end
+    before do
+      check_pristine_state
     end
-    
-    context '--when called with a block--' do
-      before do
-        M.any_including_instance.stub :m2 do |my_arg|
-          @test_var = my_arg
-        end
-      end
-      
-      it_behaves_like 'giving a shit about arity when calling', :m2
-      
-      it 'should yield the block with the arguments given to the stubbed method' do
-        subject.m2(:my_arg)
-        @test_var.should == :my_arg
-      end
-    end
-    
-    context '--when stubbing is appended with #and_return' do
-      context 'and a single parameter given to #and_return--' do
-        before do
-          M.any_including_instance.stub(:m2).and_return 7
-        end
-        
-        it_behaves_like 'giving a shit about arity when calling', :m2
 
-        it 'should return the "single parameter"' do
-          subject.m2.should be 7
+    describe "borrowing a stubbed method from an included Module (#{modewl})" do
+
+      context '--when called with a Hash--' do
+        before do
+          modewl.any_including_instance.stub m1: 'stubbed m1'
+          modewl.any_including_instance.stub m2: 'stubbed m2'
+        end
+
+        it_behaves_like 'giving a shit about arity when calling', :m1, :m2
+
+        it 'should stub the methods given in the keys and make them return a default value as indicated in the corresponding Hash-value' do
+          subject.m1.should == 'stubbed m1'
+          subject.m2.should == 'stubbed m2'
         end
       end
-      
-      context 'and a block given to #and_return--' do
+
+      context '--when called with a block--' do
         before do
-          M.any_including_instance.stub(:m2).and_return do |my_arg|
+          modewl.any_including_instance.stub :m2 do |my_arg|
             @test_var = my_arg
           end
         end
-        
+
         it_behaves_like 'giving a shit about arity when calling', :m2
 
         it 'should yield the block with the arguments given to the stubbed method' do
-          subject.m2 :my_arg
-          @test_var.should be :my_arg
+          subject.m2(:my_arg)
+          @test_var.should == :my_arg
+        end
+      end
+
+      context '--when stubbing is appended with #and_return' do
+        context 'and a single parameter given to #and_return--' do
+          before do
+            modewl.any_including_instance.stub(:m2).and_return 7
+          end
+
+          it_behaves_like 'giving a shit about arity when calling', :m2
+
+          it 'should return the "single parameter"' do
+            subject.m2.should be 7
+          end
+        end
+
+        context 'and a block given to #and_return--' do
+          before do
+            modewl.any_including_instance.stub(:m2).and_return do |my_arg|
+              @test_var = my_arg
+            end
+          end
+
+          it_behaves_like 'giving a shit about arity when calling', :m2
+
+          it 'should yield the block with the arguments given to the stubbed method' do
+            subject.m2 :my_arg
+            @test_var.should be :my_arg
+          end
         end
       end
     end
@@ -184,6 +228,10 @@ describe 'When stubbing the methods of a class that is a super class to another 
 end
 
 describe Super do
+
+  before do
+    check_pristine_state
+  end
 
   shared_examples 'test class stubbing with method' do |instance_method_under_test|
     context '--when called with a Hash--' do
