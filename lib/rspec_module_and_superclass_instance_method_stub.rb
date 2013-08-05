@@ -1,3 +1,5 @@
+require 'rspec'
+
 def nice value
   case value
   when nil
