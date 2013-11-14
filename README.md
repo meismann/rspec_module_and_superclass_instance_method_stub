@@ -50,6 +50,4 @@ There was an issue discovered with private Module-methods: stubbing the method w
     
 works, but the method does not get reset after the test. I may or may not fix this.
 
-Workaround: make the method public.
-
 
